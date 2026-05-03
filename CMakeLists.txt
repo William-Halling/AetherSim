@@ -37,7 +37,9 @@ FetchContent_MakeAvailable(entt glm spdlog)
 # Main executable
 add_executable(aethersim
     src/main.cpp
-    # Add more .cpp files here as we create them
+    src/core/simulation.cpp
+    src/systems/movement_system.cpp
+    src/systems/ai_system.cpp
 )
 
 
