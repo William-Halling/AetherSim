@@ -1,6 +1,9 @@
+#pragma once
+
 #include <entt/entt.hpp>
 #include <glm/glm.hpp>
 #include <cstdint>
+
 
 struct SimulationConfig {
     uint32_t worldWidth{2000};
@@ -24,16 +27,20 @@ public:
     [[nodiscard]] size_t getAgentCount() const;
     [[nodiscard]] float getAverageTickTimeMs() const;
 
+
 private:
+    void spawnInitialAgents(uint32_t count);
+    void tick(float dt);
+    void updateMovementChunk(uint32_t jobIndex, uint32_t totalJobs, float dt);
+    void updateAIChunk(uint32_t jobIndex, uint32_t totalJobs, float dt);
+
+
     entt::registry m_registry;
     SimulationConfig m_config;
 
-    float m_accumulator = 0.0f;
-    const float m_tickRate = 1.0f / 60.0f;
+    float m_accumulator      = 0.0f;
+    const float m_tickRate   = 1.0f / 60.0f;
 
     double m_totalTickTimeMs = 0.0;
-    uint32_t m_ticksRan = 0;
-
-    void spawnInitialAgents(uint32_t count);
-    void tick(float dt);
+    uint32_t m_ticksRan      = 0;
 };

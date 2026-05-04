@@ -12,7 +12,7 @@ Simulation::Simulation(const SimulationConfig& config)
     : m_config(config)
 {
     spawnInitialAgents(config.maxAgents);
-    spdlog::info("Simulation initialized with {} agents", config.maxAgents);
+    spdlog::info("Simulation initialized with {} agents", config.maxAgents, m_jobSystem->getThreadCount());
 }
 
 
@@ -61,7 +61,8 @@ void Simulation::update(float deltaTime)
 {
     m_accumulator += deltaTime;
 
-    while (m_accumulator >= m_tickRate) {
+    while (m_accumulator >= m_tickRate) 
+    {
         auto start = std::chrono::high_resolution_clock::now();
 
         tick(m_tickRate);
@@ -77,7 +78,51 @@ void Simulation::update(float deltaTime)
 
 void Simulation::tick(float dt)
 {
+    const uint32_t jobCount = static_cast<uint32_t>(m_jobSystem->getThreadCount());
+
+    // Create jobs for Movement
+    std::vector<JobSystem::Job> movementJobs;
+    movementJobs.reserve(jobCount);
+
+
+    for (uint32_t i = 0; i < jobCount; ++i) 
+    {
+        movementJobs.push_back([this, dt, i, jobCount]() 
+        {
+            updateMovementChunk(i, jobCount, dt);
+        });
+    }
+
+    // Create jobs for AI
+    std::vector<JobSystem::Job> aiJobs;
+    aiJobs.reserve(jobCount);
+
+    for (uint32_t i = 0; i < jobCount; ++i) 
+    {
+        aiJobs.push_back([this, dt, i, jobCount]() 
+        {
+            updateAIChunk(i, jobCount, dt);
+        });
+    }
+
+
+    // Run movement jobs in parallel
+    m_jobSystem->scheduleAndWait(movementJobs);
+
+
+    // Run AI jobs in parallel
+    m_jobSystem->scheduleAndWait(aiJobs);
+}
+
+
+void Simulation::updateMovementChunk(uint32_t jobIndex, uint32_t totalJobs, float dt)
+{
     systems::MovementSystem::update(m_registry, dt);
+}
+
+
+void Simulation::updateAIChunk(uint32_t jobIndex, uint32_t totalJobs, float dt)
+{
     systems::AISystem::update(m_registry, dt);
 }
 
