@@ -3,18 +3,20 @@
 
 JobSystem::JobSystem(size_t threadCount)
 {
-    if (threadCount == 0) 
-    {
+    if (threadCount == 0) {
+
         threadCount = std::thread::hardware_concurrency();
         
-        if (threadCount == 0)
+        if (threadCount == 0) {
+            
             threadCount = 4;
+        }
     }
 
 
     m_workerThreads.reserve(threadCount);
-    for (size_t i = 0; i < threadCount; ++i) 
-    {
+    for (size_t i = 0; i < threadCount; ++i) {
+
         m_workerThreads.emplace_back([this] { workerThread(); });
     }
 
@@ -32,9 +34,12 @@ JobSystem::~JobSystem()
     m_workAvailableCV.notify_all();
 
     
-    for (auto& t : m_workerThreads) 
+    for (auto& thread : m_workerThreads) 
     {
-        if (t.joinable()) t.join();
+        if (thread.joinable()) {
+
+            thread.join();
+        }
     }
 }
 
@@ -64,32 +69,30 @@ void JobSystem::workerThread()
     while (true) 
     {
         Job job;
-
         {
             std::unique_lock<std::mutex> lock(m_queueMutex);
             
-            m_workAvailableCV.wait(lock, [this]
-            { 
+            m_workAvailableCV.wait(lock, [this] {
+
                 return m_isShuttingDown || !m_pendingJobQueue.empty(); 
             });
 
 
-            if (m_isShuttingDown && m_pendingJobQueue.empty()) 
-            {
+            if (m_isShuttingDown && m_pendingJobQueue.empty()) {
+
                 return;
             }
 
+            if (!m_pendingJobQueue.empty()) {
 
-            if (!m_pendingJobQueue.empty()) 
-            {
                 job = std::move(m_pendingJobQueue.front());
                 m_pendingJobQueue.pop();
             }
         }
 
 
-        if (job) 
-        {
+        if (job) {
+
             job();
             m_activeJobCount--;
         }

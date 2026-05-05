@@ -1,4 +1,5 @@
 #include "core/simulation.hpp"
+#include "core/job_system.hpp"
 #include "../components/transform.hpp"
 #include "../components/velocity.hpp"
 #include "../components/ai_agent.hpp"
@@ -9,9 +10,11 @@
 
 
 Simulation::Simulation(const SimulationConfig& config)
-    : m_config(config)
+    : m_config(config), 
+    m_jobSystem(std::make_unique<JobSystem<(0))
 {
     spawnInitialAgents(config.maxAgents);
+
     spdlog::info("Simulation initialized with {} agents", config.maxAgents, m_jobSystem->getThreadCount());
 }
 
@@ -21,37 +24,38 @@ Simulation::~Simulation() = default;
 
 void Simulation::spawnInitialAgents(uint32_t count)
 {
-    for (uint32_t i = 0; i < count; ++i)
-    {
-        auto e = m_registry.create();
-        auto& t = m_registry.emplace<Transform>(e);
-       
-        t.position.x = static_cast<float>(rand() % m_config.worldWidth);
-        t.position.y = static_cast<float>(rand() % m_config.worldHeight);
-        t.position.z = static_cast<float>(rand() % m_config.worldDepth);
+    for (uint32_t i = 0; i < count; ++i) {
 
-        m_registry.emplace<Velocity>(e);
-        m_registry.emplace<AIAgent>(e);
+        auto entity = m_registry.create();
+
+        auto& transform      = m_registry.emplace<Transform>(entity);
+        transform.position.x = static_cast<float>(rand() % m_config.worldWidth);
+        transform.position.y = static_cast<float>(rand() % m_config.worldHeight);
+        transform.position.z = static_cast<float>(rand() % m_config.worldDepth);
+
+        m_registry.emplace<Velocity>(entity);
+        m_registry.emplace<AIAgent>(entity);
     }
 }
 
 
 entt::entity Simulation::createAgent(glm::vec3 position)
 {
-    auto e = m_registry.create();
-    auto& t = m_registry.emplace<Transform>(e);
-    t.position = position;
+    auto entity        = m_registry.create();
+    auto& transform    = m_registry.emplace<Transform>(entity);
+    transform.position = position;
     
-    m_registry.emplace<Velocity>(e);
-    m_registry.emplace<AIAgent>(e);
+    m_registry.emplace<Velocity>(entity);
+    m_registry.emplace<AIAgent>(entity);
 
-    return e;
+    return entity;
 }
 
 
 void Simulation::destroyAgent(entt::entity entity)
 {
-    if (m_registry.valid(entity)) {
+    if (m_registry.valid(entity)){
+
         m_registry.destroy(entity);
     }
 }
@@ -61,15 +65,15 @@ void Simulation::update(float deltaTime)
 {
     m_accumulator += deltaTime;
 
-    while (m_accumulator >= m_tickRate) 
-    {
+    while (m_accumulator >= m_tickRate) {
+
         auto start = std::chrono::high_resolution_clock::now();
 
         tick(m_tickRate);
 
         auto end = std::chrono::high_resolution_clock::now();
         m_totalTickTimeMs += std::chrono::duration<double, std::milli>(end - start).count();
-        m_ticksRan++;
+        m_tickCount++;
 
         m_accumulator -= m_tickRate;
     }
@@ -80,37 +84,24 @@ void Simulation::tick(float dt)
 {
     const uint32_t jobCount = static_cast<uint32_t>(m_jobSystem->getThreadCount());
 
-    // Create jobs for Movement
     std::vector<JobSystem::Job> movementJobs;
     movementJobs.reserve(jobCount);
-
-
-    for (uint32_t i = 0; i < jobCount; ++i) 
-    {
-        movementJobs.push_back([this, dt, i, jobCount]() 
-        {
+    for (uint32_t i = 0; i < jobCount; ++i) {
+        movementJobs.emplace_back([this, dt, i, jobCount]() {
             updateMovementChunk(i, jobCount, dt);
         });
     }
 
-    // Create jobs for AI
     std::vector<JobSystem::Job> aiJobs;
     aiJobs.reserve(jobCount);
-
-    for (uint32_t i = 0; i < jobCount; ++i) 
-    {
-        aiJobs.push_back([this, dt, i, jobCount]() 
-        {
+    for (uint32_t i = 0; i < jobCount; ++i) {
+        aiJobs.emplace_back([this, dt, i, jobCount]() {
             updateAIChunk(i, jobCount, dt);
         });
     }
 
-
-    // Run movement jobs in parallel
+        // execute in parallel threads
     m_jobSystem->scheduleAndWait(movementJobs);
-
-
-    // Run AI jobs in parallel
     m_jobSystem->scheduleAndWait(aiJobs);
 }
 
