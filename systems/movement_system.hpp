@@ -1,11 +1,21 @@
 #pragma once
 #include <entt/entt.hpp>
 
-namespace systems{
-  
-    class MovementSystem
-    {
-        public:
-            static void update(entt::registry& registry, float dt);
-    };
+namespace Systems {
+
+    /**
+     * @class MovementSystem
+     * @brief Handles kinematic integration of velocity into position.
+     */
+class MovementSystem {
+public:
+        /**
+         * @brief Integrates velocity into transform positions for a specific range of entities.
+         * @param registry The ECS registry containing components.
+         * @param deltaTime Elapsed time for the current tick.
+         * @param rangeStart The starting index in the view.
+         * @param rangeEnd The ending index in the view.
+         */
+    static void IntegratePositions(entt::registry& registry, float deltaTime, size_t rangeStart, size_t rangeEnd);
+};
 }

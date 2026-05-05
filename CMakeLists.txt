@@ -40,6 +40,7 @@ add_executable(aethersim
     src/core/simulation.cpp
     src/systems/movement_system.cpp
     src/systems/ai_system.cpp
+    src/core/task_scheduler.cpp
 )
 
 

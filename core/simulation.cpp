@@ -1,138 +1,177 @@
-#include "core/simulation.hpp"
-#include "core/job_system.hpp"
-#include "../components/transform.hpp"
-#include "../components/velocity.hpp"
-#include "../components/ai_agent.hpp"
-#include "../systems/movement_system.hpp"
-#include "../systems/ai_system.hpp"
+#include "Simulation.hpp"
 #include <spdlog/spdlog.h>
 #include <chrono>
+#include <random>
+#include "../components/Transform.hpp"
+#include "../components/Velocity.hpp"
+#include "../components/AIAgent.hpp"
+#include "../systems/MovementSystem.hpp"
+#include "../systems/AISystem.hpp"
 
+namespace Core 
+{
 
 Simulation::Simulation(const SimulationConfig& config)
-    : m_config(config), 
-    m_jobSystem(std::make_unique<JobSystem<(0))
+    : m_Config(config)
+    , m_TaskScheduler(std::make_unique<TaskScheduler>(0))
 {
-    spawnInitialAgents(config.maxAgents);
+    SpawnInitialAgents(m_Config.maxAgents);
 
-    spdlog::info("Simulation initialized with {} agents", config.maxAgents, m_jobSystem->getThreadCount());
+    spdlog::info("Simulation initialized. Agents: {} | Threads: {}", m_Config.maxAgents, m_TaskScheduler->GetThreadCount());
 }
 
 
 Simulation::~Simulation() = default;
 
 
-void Simulation::spawnInitialAgents(uint32_t count)
+void Simulation::SpawnInitialAgents(uint32_t count) 
 {
-    for (uint32_t i = 0; i < count; ++i) {
+    // Thread-safe random initialization
+    std::mt19937 generator(std::random_device{}());
+    std::uniform_real_distribution<float> distWidth(0.0f, (float)m_Config.worldWidth);
+    std::uniform_real_distribution<float> distHeight(0.0f, (float)m_Config.worldHeight);
+    std::uniform_real_distribution<float> distDepth(0.0f, (float)m_Config.worldDepth);
 
-        auto entity = m_registry.create();
-
-        auto& transform      = m_registry.emplace<Transform>(entity);
-        transform.position.x = static_cast<float>(rand() % m_config.worldWidth);
-        transform.position.y = static_cast<float>(rand() % m_config.worldHeight);
-        transform.position.z = static_cast<float>(rand() % m_config.worldDepth);
-
-        m_registry.emplace<Velocity>(entity);
-        m_registry.emplace<AIAgent>(entity);
+    for (uint32_t i = 0; i < count; ++i) 
+    {
+        CreateAgent({ distWidth(generator), distHeight(generator), distDepth(generator) });
     }
 }
 
-
-entt::entity Simulation::createAgent(glm::vec3 position)
+entt::entity Simulation::CreateAgent(const glm::vec3& position) 
 {
-    auto entity        = m_registry.create();
-    auto& transform    = m_registry.emplace<Transform>(entity);
-    transform.position = position;
+    auto entity = m_Registry.create();
     
-    m_registry.emplace<Velocity>(entity);
-    m_registry.emplace<AIAgent>(entity);
+    auto& transform = m_Registry.emplace<Transform>(entity);
+    transform.Position = position;
+
+    m_Registry.emplace<Velocity>(entity);
+    m_Registry.emplace<AIAgent>(entity);
 
     return entity;
 }
 
 
-void Simulation::destroyAgent(entt::entity entity)
+void Simulation::DestroyAgent(entt::entity entity)
 {
-    if (m_registry.valid(entity)){
-
-        m_registry.destroy(entity);
+    if (m_Registry.valid(entity)) {
+        m_Registry.destroy(entity);
     }
 }
 
 
-void Simulation::update(float deltaTime)
+void Simulation::Update(float deltaTimeSeconds) 
 {
-    m_accumulator += deltaTime;
+    m_TimeAccumulator += deltaTimeSeconds;
 
-    while (m_accumulator >= m_tickRate) {
+    while (m_TimeAccumulator >= m_FixedTickRate) {
+        const auto start = std::chrono::high_resolution_clock::now();
 
-        auto start = std::chrono::high_resolution_clock::now();
+        OnTick(m_FixedTickRate);
 
-        tick(m_tickRate);
+        const auto end = std::chrono::high_resolution_clock::now();
+        m_TotalTickTimeMs += std::chrono::duration<double, std::milli>(end - start).count();
+        m_TicksExecutedCount++;
 
-        auto end = std::chrono::high_resolution_clock::now();
-        m_totalTickTimeMs += std::chrono::duration<double, std::milli>(end - start).count();
-        m_tickCount++;
-
-        m_accumulator -= m_tickRate;
+        m_TimeAccumulator -= m_FixedTickRate;
     }
 }
 
 
-void Simulation::tick(float dt)
+void Simulation::OnTick(float tickRate)
 {
-    const uint32_t jobCount = static_cast<uint32_t>(m_jobSystem->getThreadCount());
 
-    std::vector<JobSystem::Job> movementJobs;
-    movementJobs.reserve(jobCount);
-    for (uint32_t i = 0; i < jobCount; ++i) {
-        movementJobs.emplace_back([this, dt, i, jobCount]() {
-            updateMovementChunk(i, jobCount, dt);
+    DispatchAI(tickRate);
+    DispatchMovement(tickRate);
+}
+
+
+void Simulation::DispatchAI(float deltaTime) 
+{
+    const size_t agentCount = m_Registry.view<AIAgent>().size();
+
+    if (agentCount == 0) 
+    {
+        return;
+    }
+
+    const uint32_t threadCount = static_cast<uint32_t>(m_TaskScheduler->GetThreadCount());
+    const size_t chunkSize = (agentCount + threadCount - 1) / threadCount;
+
+    std::vector<TaskScheduler::Task> aiTasks;
+    aiTasks.reserve(threadCount);
+
+
+    for (uint32_t i = 0; i < threadCount; ++i) {
+        size_t startIdx = i * chunkSize;
+        size_t endIdx = std::min(startIdx + chunkSize, agentCount);
+
+        if (startIdx >= agentCount) 
+        {
+            break;
+        }
+
+        aiTasks.emplace_back([this, deltaTime, startIdx, endIdx]() 
+        {
+            Systems::AISystem::UpdateRange(m_Registry, deltaTime, startIdx, endIdx);
         });
     }
 
-    std::vector<JobSystem::Job> aiJobs;
-    aiJobs.reserve(jobCount);
-    for (uint32_t i = 0; i < jobCount; ++i) {
-        aiJobs.emplace_back([this, dt, i, jobCount]() {
-            updateAIChunk(i, jobCount, dt);
+    m_TaskScheduler->DispatchAndWait(aiTasks);
+}
+
+
+void Simulation::DispatchMovement(float deltaTime) {
+    const size_t agentCount = m_Registry.view<Transform, Velocity>().size();
+    
+    if (agentCount == 0) 
+    {
+        return;
+    }
+
+
+    const uint32_t threadCount = static_cast<uint32_t>(m_TaskScheduler->GetThreadCount());
+    const size_t chunkSize = (agentCount + threadCount - 1) / threadCount;
+
+    std::vector<TaskScheduler::Task> moveTasks;
+    moveTasks.reserve(threadCount);
+
+
+    for (uint32_t i = 0; i < threadCount; ++i) {
+        size_t startIdx = i * chunkSize;
+        size_t endIdx = std::min(startIdx + chunkSize, agentCount);
+
+        if (startIdx >= agentCount) 
+        {
+            break;
+        }
+
+        moveTasks.emplace_back([this, deltaTime, startIdx, endIdx]() {
+            Systems::MovementSystem::UpdateRange(m_Registry, deltaTime, startIdx, endIdx);
         });
     }
 
-        // execute in parallel threads
-    m_jobSystem->scheduleAndWait(movementJobs);
-    m_jobSystem->scheduleAndWait(aiJobs);
+    m_TaskScheduler->DispatchAndWait(moveTasks);
 }
 
 
-void Simulation::updateMovementChunk(uint32_t jobIndex, uint32_t totalJobs, float dt)
+void Simulation::Run(uint32_t tickCount)
 {
-    systems::MovementSystem::update(m_registry, dt);
-}
-
-
-void Simulation::updateAIChunk(uint32_t jobIndex, uint32_t totalJobs, float dt)
-{
-    systems::AISystem::update(m_registry, dt);
-}
-
-
-void Simulation::run(uint32_t numTicks)
-{
-    for (uint32_t i = 0; i < numTicks; ++i) {
-        update(1.0f / 60.0f);
+    for (uint32_t i = 0; i < tickCount; ++i) {
+        Update(m_FixedTickRate);
     }
 }
 
 
-size_t Simulation::getAgentCount() const
+size_t Simulation::GetAgentCount() const noexcept
 {
-    return m_registry.size();
+    return m_Registry.size();
 }
 
 
-float Simulation::getAverageTickTimeMs() const
+float Simulation::GetAverageTickTimeMs() const noexcept 
 {
-    return m_ticksRan > 0 ? static_cast<float>(m_totalTickTimeMs / m_ticksRan) : 0.0f;
+    return m_TicksExecutedCount > 0 ? static_cast<float>(m_TotalTickTimeMs / m_TicksExecutedCount) : 0.0f;
 }
+
+} // namespace Core

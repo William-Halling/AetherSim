@@ -2,18 +2,21 @@
 
 namespace systems {
 
-void MovementSystem::update(entt::registry& registry, float deltaT)
+void MovementSystem::update(entt::registry& registry, float deltaTime, size_t rangeStart, size_t rangeEnd)
 {
-    auto view = registry.view<Transform, Velocity>();
+    auto view = registry.view<Components::Transform, Components::Velocity>();
 
-    for(auto entity : view)
+    auto it    = view.begin() + rangeStart;
+    auto itEnd = view.begin() + rangeEnd;
+
+
+    for (; it != itEnd; ++it) 
     {
-        auto& pos = view.get<Transform>(entity).position;
+        const auto entity    = *it;
+        auto& transform      = view.get<Components::Transform>(entity);
+        const auto& velocity = view.get<Components::Velocity>(entity);
 
-        auto& vel = view.get<Velocity>(entity);
-
-        pos += vel.value * deltaT;
+        transform.Position += velocity.Linear * deltaTime;
     }
 }
-
 }

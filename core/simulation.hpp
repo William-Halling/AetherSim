@@ -4,44 +4,101 @@
 #include <glm/glm.hpp>
 #include <cstdint>
 #include <memory>
-#include "simulation_config.hpp"
+#include <vector>
+#include "SimulationConfig.hpp"
+#include "core/TaskScheduler.hpp"
 
+namespace Core {
 
-class JobSystem;
-
-
+    /**
+     * @class Simulation
+     * @brief Manages the high-level life cycle, entity registry, and parallelized systems.
+     * 
+     * The Simulation class implements a fixed-timestep update loop, ensuring deterministic 
+     * physics and AI logic regardless of variable frame rates.
+     */
 class Simulation {
 public:
+        /**
+         * @brief Constructs the simulation environment.
+         * @param config Configuration parameters for world bounds and agent counts.
+         */
     explicit Simulation(const SimulationConfig& config = {});
+    
+
+        /** @brief Destructor handles graceful cleanup of the TaskScheduler and Registry. */
     ~Simulation();
 
-    void update(float deltaTime);
-    void run(uint32_t numTicks);
 
-    entt::entity createAgent(glm::vec3 position);
-    void destroyAgent(entt::entity entity);
+        // Deleted to prevent accidental duplication of heavy system resources
+    Simulation(const Simulation&) = delete;
+    Simulation& operator=(const Simulation&) = delete;
 
-    [[nodiscard]] size_t getAgentCount() const noexcept;
-    [[nodiscard]] float getAverageTickTimeMs() const noexcept;
+
+        /**
+         * @brief Updates the simulation accumulator and executes fixed-rate ticks.
+         * @param deltaTimeSeconds Elapsed time since the last frame in seconds.
+         */
+    void Update(float deltaTimeSeconds);
+
+
+        /**
+         * @brief Forces the simulation to run for a specific number of ticks.
+         * @param tickCount Number of simulation steps to execute.
+         */
+    void Run(uint32_t tickCount);
+
+
+        /**
+         * @brief Creates a new agent entity at the specified position.
+         * @param position Initial 3D coordinates for the agent.
+         * @return The resulting entt::entity handle.
+         */
+    entt::entity CreateAgent(const glm::vec3& position);
+
+
+        /**
+         * @brief Safely removes an agent from the registry.
+         * @param entity Handle of the agent to destroy.
+         */
+    void DestroyAgent(entt::entity entity);
+
+
+        /** @return Total number of active agents in the registry. */
+    [[nodiscard]] size_t GetAgentCount() const noexcept;
+
+
+        /** @return The calculated average time taken to process a single tick in milliseconds. */
+    [[nodiscard]] float GetAverageTickTimeMs() const noexcept;
 
 private:
-    void spawnInitialAgents(uint32_t count);
-    void tick(float dt);
+
+        /** @brief Populates the world with agents based on the initial configuration. */
+    void SpawnInitialAgents(uint32_t count);
+
+    
+        /** @brief Executes a single logic step (AI and Movement). */
+    void OnTick(float tickRate);
 
 
-        ///parallel updates
-    void updateMovementChunk(uint32_t jobIndex, uint32_t totalJobs, float deltaT);
-    void updateAIChunk(uint32_t jobIndex, uint32_t totalJobs, float deltaT);
+        /** @brief Dispatches movement logic across available worker threads. */
+    void DispatchMovement(float deltaTime);
 
 
-    SimulationConfig m_config;
-    entt::registry   m_registry;
-    std::unique_ptr<JobSystem> m_JobSystem;
+        /** @brief Dispatches AI logic across available worker threads. */
+    void DispatchAI(float deltaTime);
 
 
-    float m_accumulator      = 0.0f;
-    const float m_tickRate   = 1.0f / 60.0f;
+private:
+    SimulationConfig           m_Config;
+    entt::registry             m_Registry;
+    std::unique_ptr<TaskScheduler> m_TaskScheduler;
 
-    double m_totalTickTimeMs = 0.0;
-    uint32_t m_tickCount     = 0;
+    float  m_TimeAccumulator{0.0f};
+    const float m_FixedTickRate{1.0f / 60.0f};
+
+    double   m_TotalTickTimeMs{0.0};
+    uint32_t m_TicksExecutedCount{0};
 };
+
+}

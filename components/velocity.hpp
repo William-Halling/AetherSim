@@ -1,7 +1,14 @@
 #pragma once
 #include <glm/glm.hpp>
 
-struct Velocity{
+namespace Components {
 
-    glm::vec3 value{0.0f};
-};
+        /**
+         * @struct Velocity
+         * @brief Represents the linear physical movement vector of an entity.
+         */
+    struct Velocity{
+
+        glm::vec3 value{0.0f};
+    };
+}

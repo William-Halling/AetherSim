@@ -2,17 +2,29 @@
 #include "../components/velocity.hpp"
 #include "../components/ai_agent.hpp"
 
-namespace systems{
+namespace Systems{
   
-void AISystem::update(entt::registry& registry, float dt)
-{
-    auto view = registry.view<AIAgent, Velocity>();
-    for (auto entity : view)
+    void AISystem::ComputeBehaviors(entt::registry& registry, float deltaTime, size_t rangeStart, size_t rangeEnd) 
     {
-        auto& vel = view.get<Velocity>(entity);
-        vel.value.x = (rand() % 3 - 1) * 40.0f;
-        vel.value.y = (rand() % 3 - 1) * 40.0f;
-    }
-}
+        
+        thread_local std::mt19937 generator(std::random_device{}());
+        std::uniform_real_distribution<float> distribution(-1.0f, 1.0f);
+    
+        auto view = registry.view<Components::AIAgent, Components::Velocity>();
+        
+        auto it    = view.begin() + rangeStart;
+        auto itEnd = view.begin() + rangeEnd;
+    
 
+        for (; it != itEnd; ++it) 
+        {
+            const auto entity = *it;
+            auto& velocity    = view.get<Components::Velocity>(entity);
+            const auto& agent = view.get<Components::AIAgent>(entity);
+    
+                // Simple wandering logic scaled by agent speed
+            velocity.Linear.x = distribution(generator) * agent.Speed;
+            velocity.Linear.y = distribution(generator) * agent.Speed;
+        }
+    }
 }
