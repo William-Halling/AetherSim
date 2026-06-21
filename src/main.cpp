@@ -5,16 +5,16 @@
 int main() {
     spdlog::info("=== AetherSim Starting ===");
 
-    SimulationConfig config{};
+    Core::SimulationConfig config{};
     config.maxAgents = 5000;
-    Simulation sim(config);
+    Core::Simulation sim(config);
 
     spdlog::info("Running simulation for 300 ticks...");
-    sim.run(300);
+    sim.Run(300); // Fixed naming casing alignment
 
     spdlog::info("Simulation finished");
-    spdlog::info("Final agent count: {}", sim.getAgentCount());
-    spdlog::info("Average tick time: {:.2f} ms", sim.getAverageTickTimeMs());
+    spdlog::info("Final agent count: {}", sim.GetAgentCount()); // Fixed naming casing alignment
+    spdlog::info("Average tick time: {:.2f} ms", sim.GetAverageTickTimeMs()); // Fixed naming casing alignment
 
     return 0;
 }
