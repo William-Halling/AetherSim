@@ -9,6 +9,6 @@ namespace Components {
          */
     struct Velocity{
 
-        glm::vec3 value{0.0f};
+        glm::vec3 Linear{0.0f};
     };
 }
