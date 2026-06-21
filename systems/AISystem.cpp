@@ -1,6 +1,6 @@
-#include "ai_system.hpp"
-#include "../components/velocity.hpp"
-#include "../components/ai_agent.hpp"
+#include "AISystem.hpp"
+#include "../components/Velocity.hpp"
+#include "../components/AIAgent.hpp"
 
 namespace Systems
 {
