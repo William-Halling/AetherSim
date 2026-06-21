@@ -88,12 +88,14 @@ void Simulation::OnTick(float tickRate)
 
 void Simulation::DispatchAI(float deltaTime) 
 {
-    const size_t agentCount = m_Registry.view<AIAgent>().size();
-
-    if (agentCount == 0) 
-    {
+    auto view = m_Registry.view<Components::AIAgent, Components::Velocity>();
+    
+    if (view.empty()) 
         return;
-    }
+
+        // Cache active entity IDs to linear memory for safe thread index chunking
+    std::vector<entt::entity> entities(view.begin(), view.end());
+    const size_t agentCount = entities.size();
 
     const uint32_t threadCount = static_cast<uint32_t>(m_TaskScheduler->GetThreadCount());
     const size_t chunkSize = (agentCount + threadCount - 1) / threadCount;
@@ -101,19 +103,17 @@ void Simulation::DispatchAI(float deltaTime)
     std::vector<TaskScheduler::Task> aiTasks;
     aiTasks.reserve(threadCount);
 
-
-    for (uint32_t i = 0; i < threadCount; ++i) {
+    for (uint32_t i = 0; i < threadCount; ++i) 
+    {
         size_t startIdx = i * chunkSize;
         size_t endIdx = std::min(startIdx + chunkSize, agentCount);
 
-        if (startIdx >= agentCount) 
-        {
+        if (startIdx >= agentCount)
             break;
-        }
 
-        aiTasks.emplace_back([this, deltaTime, startIdx, endIdx]() 
+        aiTasks.emplace_back([this, deltaTime, entities, startIdx, endIdx]()
         {
-            Systems::AISystem::UpdateRange(m_Registry, deltaTime, startIdx, endIdx);
+            Systems::AISystem::UpdateRange(m_Registry, deltaTime, entities, startIdx, endIdx);
         });
     }
 
@@ -121,23 +121,27 @@ void Simulation::DispatchAI(float deltaTime)
 }
 
 
-void Simulation::DispatchMovement(float deltaTime) {
-    const size_t agentCount = m_Registry.view<Transform, Velocity>().size();
+void Simulation::DispatchMovement(float deltaTime)
+{
+    auto view = m_Registry.view<Components::Transform, Components::Velocity>();
     
-    if (agentCount == 0) 
+    if (view.empty()) 
     {
         return;
     }
 
+    std::vector<entt::entity> entities(view.begin(), view.end());
+    const size_t agentCount = entities.size();
 
     const uint32_t threadCount = static_cast<uint32_t>(m_TaskScheduler->GetThreadCount());
     const size_t chunkSize = (agentCount + threadCount - 1) / threadCount;
-
+    
     std::vector<TaskScheduler::Task> moveTasks;
     moveTasks.reserve(threadCount);
 
 
-    for (uint32_t i = 0; i < threadCount; ++i) {
+    for (uint32_t i = 0; i < threadCount; ++i) 
+    {
         size_t startIdx = i * chunkSize;
         size_t endIdx = std::min(startIdx + chunkSize, agentCount);
 
@@ -146,7 +150,8 @@ void Simulation::DispatchMovement(float deltaTime) {
             break;
         }
 
-        moveTasks.emplace_back([this, deltaTime, startIdx, endIdx]() {
+        moveTasks.emplace_back([this, deltaTime, startIdx, endIdx]()
+        {
             Systems::MovementSystem::UpdateRange(m_Registry, deltaTime, startIdx, endIdx);
         });
     }
