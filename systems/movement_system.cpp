@@ -2,16 +2,18 @@
 
 namespace systems 
 {
-    void MovementSystem::UpdateRange(entt::registry& registry, float deltaTime, const std::vector<entt::entity>& entities, size_t startIdx, size_t endIdx) 
+    void MovementSystem::UpdateRange(entt::registry& registry, float deltaTime, size_t rangeStart, size_t rangeEnd)
     {
         auto view = registry.view<Components::Transform, Components::Velocity>();
-
-        for (size_t i = startIdx; i < endIdx; ++i) 
+        auto* entities = view.data();
+    
+        for (size_t i = rangeStart; i < rangeEnd; ++i) 
         {
             entt::entity entity = entities[i];
-            auto& transform = view.get<Components::Transform>(entity);
+            auto& transform      = view.get<Components::Transform>(entity);
             const auto& velocity = view.get<Components::Velocity>(entity);
-
+    
+            // Standard kinematic integration step
             transform.Position += velocity.Linear * deltaTime;
         }
     }
