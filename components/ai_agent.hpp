@@ -10,5 +10,4 @@ namespace Components
         float Speed{80.0f};
         float PerceptionRadius{150.0f};
     };
-    
-} // namespace Components
+}
