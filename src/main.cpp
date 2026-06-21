@@ -1,5 +1,5 @@
 #include <spdlog/spdlog.h>
-#include "core/simulation.hpp"
+#include "core/Simulation.hpp"
 
 
 int main() {
