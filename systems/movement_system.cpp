@@ -1,22 +1,18 @@
 #include "core/movement_system.h"
 
-namespace systems {
-
-void MovementSystem::UpdateRange(entt::registry& registry, float deltaTime, size_t rangeStart, size_t rangeEnd)
+namespace systems 
 {
-    auto view = registry.view<Components::Transform, Components::Velocity>();
-
-    auto it    = view.begin() + rangeStart;
-    auto itEnd = view.begin() + rangeEnd;
-
-
-    for (; it != itEnd; ++it) 
+    void MovementSystem::UpdateRange(entt::registry& registry, float deltaTime, const std::vector<entt::entity>& entities, size_t startIdx, size_t endIdx) 
     {
-        const auto entity    = *it;
-        auto& transform      = view.get<Components::Transform>(entity);
-        const auto& velocity = view.get<Components::Velocity>(entity);
+        auto view = registry.view<Components::Transform, Components::Velocity>();
 
-        transform.Position += velocity.Linear * deltaTime;
+        for (size_t i = startIdx; i < endIdx; ++i) 
+        {
+            entt::entity entity = entities[i];
+            auto& transform = view.get<Components::Transform>(entity);
+            const auto& velocity = view.get<Components::Velocity>(entity);
+
+            transform.Position += velocity.Linear * deltaTime;
+        }
     }
-}
 }
