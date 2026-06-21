@@ -1,6 +1,6 @@
 #include "core/movement_system.h"
 
-namespace systems 
+namespace Systems 
 {
     void MovementSystem::UpdateRange(entt::registry& registry, float deltaTime, size_t rangeStart, size_t rangeEnd)
     {
