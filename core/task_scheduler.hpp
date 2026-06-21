@@ -125,4 +125,4 @@ auto TaskScheduler::DispatchWithFuture(F&& f) -> std::future<decltype(f())> {
     return future;
 }
 
-} // namespace Core
+}
