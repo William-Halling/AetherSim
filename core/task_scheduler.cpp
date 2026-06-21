@@ -10,8 +10,9 @@ namespace Core
             threadCount = std::thread::hardware_concurrency();
         
             if (threadCount == 0) 
-            
+            {
                 threadCount = 4;
+            }
         }
 
 
@@ -37,7 +38,8 @@ namespace Core
 
         for (auto& worker : m_WorkerThreads) 
         {
-            if (worker.joinable()) {
+            if (worker.joinable()) 
+            {
                 worker.join();
             }
         }
@@ -58,7 +60,8 @@ namespace Core
 
     void TaskScheduler::DispatchAndWait(const std::vector<Task>& tasks) 
     {
-        for (const auto& task : tasks) {
+        for (const auto& task : tasks) 
+        {
             Dispatch(task);
         }
         WaitUntilIdle();
@@ -101,11 +104,10 @@ namespace Core
                     return m_bIsShuttingDown || !m_TaskQueue.empty();
                 });
 
-
-                if (m_bIsShuttingDown && m_TaskQueue.empty()) {
+                if (m_bIsShuttingDown && m_TaskQueue.empty())
+                {
                     return;
                 }
-
 
                 if (!m_TaskQueue.empty()) 
                 {
@@ -113,7 +115,6 @@ namespace Core
                     m_TaskQueue.pop();
                 }
             }
-
 
             if (task)
             {
@@ -124,7 +125,8 @@ namespace Core
                 if (m_RemainingTaskCount.load() == 0) 
                 {
                     std::lock_guard<std::mutex> lock(m_QueueMutex);
-                    if (m_TaskQueue.empty()) {
+                    if (m_TaskQueue.empty())
+                    {
                         m_AllTasksFinishedCV.notify_all();
                     }
                 }
@@ -132,4 +134,4 @@ namespace Core
         }
     }
 
-} // namespace Core
+}
