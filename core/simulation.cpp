@@ -179,4 +179,4 @@ float Simulation::GetAverageTickTimeMs() const noexcept
     return m_TicksExecutedCount > 0 ? static_cast<float>(m_TotalTickTimeMs / m_TicksExecutedCount) : 0.0f;
 }
 
-} // namespace Core
+}
