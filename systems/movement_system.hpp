@@ -16,6 +16,6 @@ public:
          * @param rangeStart The starting index in the view.
          * @param rangeEnd The ending index in the view.
          */
-    static void IntegratePositions(entt::registry& registry, float deltaTime, size_t rangeStart, size_t rangeEnd);
+    static void UpdateRange(entt::registry& registry, float deltaTime, const std::vector<entt::entity>& entities, size_t startIdx, size_t endIdx);
 };
 }
