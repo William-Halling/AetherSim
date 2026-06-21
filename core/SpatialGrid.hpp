@@ -30,3 +30,4 @@ private:
     std::unordered_map<glm::ivec3, std::vector<entt::entity>, CellHash> m_Cells;
     std::shared_mutex m_GridMutex;
 };
+}
