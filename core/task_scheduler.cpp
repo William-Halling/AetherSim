@@ -15,7 +15,6 @@ namespace Core
             }
         }
 
-
         m_WorkerThreads.reserve(threadCount);
         for (size_t i = 0; i < threadCount; ++i) 
         {
@@ -24,7 +23,6 @@ namespace Core
 
         spdlog::info("TaskScheduler initialized with {} threads.", threadCount);
     }
-
 
     TaskScheduler::~TaskScheduler()
     {
@@ -35,7 +33,6 @@ namespace Core
 
         m_TaskAvailableCV.notify_all();
 
-
         for (auto& worker : m_WorkerThreads) 
         {
             if (worker.joinable()) 
@@ -44,7 +41,6 @@ namespace Core
             }
         }
     }
-
 
     void TaskScheduler::Dispatch(Task task) 
     {
@@ -57,7 +53,6 @@ namespace Core
         m_TaskAvailableCV.notify_one();
     }
 
-
     void TaskScheduler::DispatchAndWait(const std::vector<Task>& tasks) 
     {
         for (const auto& task : tasks) 
@@ -66,7 +61,6 @@ namespace Core
         }
         WaitUntilIdle();
     }
-
 
     void TaskScheduler::WaitUntilIdle()
     {
@@ -77,19 +71,16 @@ namespace Core
         });
     }
 
-
     size_t TaskScheduler::GetThreadCount() const noexcept 
     {
         return m_WorkerThreads.size();
     }
-
 
     uint32_t TaskScheduler::GetQueuedTaskCount() const 
     {
         std::lock_guard<std::mutex> lock(m_QueueMutex);
         return static_cast<uint32_t>(m_TaskQueue.size());
     }
-
 
     void TaskScheduler::WorkerLoop() 
     {
