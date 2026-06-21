@@ -2,7 +2,7 @@
 
 namespace systems {
 
-void MovementSystem::update(entt::registry& registry, float deltaTime, size_t rangeStart, size_t rangeEnd)
+void MovementSystem::UpdateRange(entt::registry& registry, float deltaTime, size_t rangeStart, size_t rangeEnd)
 {
     auto view = registry.view<Components::Transform, Components::Velocity>();
 
